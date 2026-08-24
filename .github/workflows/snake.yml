@@ -1,0 +1,64 @@
+# ── The "Pipeline" feature referenced in README.md ──────────────────────────
+#
+# What this does: once a day (and any time you trigger it by hand), this reads
+# your REAL GitHub contribution graph and renders it as a snake eating its way
+# across the grid — recolored to the exact N24 palette used everywhere else on
+# the profile (paper / ink / red, generate.py's PAPER/INK/RED). It commits the
+# two output SVGs to a separate `output` branch, which README.md already links
+# to via raw.githubusercontent.com. Nothing else in the repo changes.
+#
+# ── One-time setup (takes about a minute) ───────────────────────────────────
+#   1. Push this whole kit — README.md, assets/, and this .github/ folder —
+#      to a PUBLIC repo named exactly `Nitinvikaas24` (your username).
+#   2. In that repo: Settings → Actions → General → "Workflow permissions" →
+#      select "Read and write permissions" → Save.
+#      (Required once — otherwise the push step below is blocked and fails.)
+#   3. Go to the Actions tab → "N24 contribution snake" → "Run workflow" →
+#      run it once by hand. Don't wait for the first scheduled run — the
+#      `output` branch (and the images README.md points to) won't exist
+#      until this runs at least once.
+#   4. Refresh your profile after ~30–60 seconds. The snake and the
+#      "SNAKE PIPELINE" status badge in the Pipeline section will now render.
+#
+# After that, it just runs itself daily — nothing to maintain.
+# Built on https://github.com/Platane/snk (MIT licensed).
+
+name: N24 contribution snake
+
+on:
+  schedule:
+    - cron: "0 0 * * *"    # once a day, at 00:00 UTC
+  workflow_dispatch:        # lets you trigger it by hand from the Actions tab
+  push:
+    branches:
+      - main
+
+jobs:
+  generate:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      # Renders two SVGs: a light one (paper background, ink/red dots) and a
+      # dark one (ink background), matching README.md's <picture> element
+      # which swaps between them based on the visitor's GitHub theme.
+      - name: generate github-contribution-grid-snake.svg
+        uses: Platane/snk/svg-only@v3
+        with:
+          github_user_name: ${{ github.repository_owner }}
+          outputs: |
+            dist/github-contribution-grid-snake.svg?color_snake=%23E6301E&color_dots=%23F4F1E9,%23EDE9DD,%23D8D2C0,%23B9B4A6,%230E0E10
+            dist/github-contribution-grid-snake-dark.svg?color_snake=%23FF5B3C&color_dots=%230E0E10,%232A2A30,%2355524A,%238B8578,%23F4F1E9
+
+      # Publishes dist/ to the `output` branch. README.md reads the SVGs
+      # straight from that branch via raw.githubusercontent.com — no GitHub
+      # Pages setup needed.
+      - name: push github-contribution-grid-snake.svg to the output branch
+        uses: crazy-max/ghaction-github-pages@v3.1.0
+        with:
+          target_branch: output
+          build_dir: dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
